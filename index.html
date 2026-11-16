@@ -37,7 +37,45 @@
 /* ---------- CONFIG: Iowa Dirt Fuel Log form (posts exactly like a person filling the form) ---------- */
 var FORM_POST = 'https://docs.google.com/forms/d/e/1FAIpQLSc2nwPmBSfNGzw5qPIm37joHqEiYH3nA9D6sNYffVkOBQWGrA/formResponse';
 var NOT_LISTED_JOB = 'Not on the list (type it below) / No está en la lista';
+var YARD_URL = 'https://script.google.com/macros/s/AKfycbwZjzBii5ipZivgvQfcbMMUGsx0tFQ3fg_WWLeunRUy8e5L05x7G54-Yiabli3Vtk5G/exec';
 var REPORTS = {
+ yard: {
+  name: {en:'Yard truck check-in', es:'Registro de camión en el patio'},
+  kind:'yard',
+  qs: [
+   {id:'name', type:'text', req:true, remember:true,
+    say:{en:'What is your name?', es:'¿Cuál es tu nombre?'}},
+   {id:'yard', type:'choice', req:true,
+    say:{en:'Which yard? Valley Junction or Norwalk?', es:'¿Qué patio? ¿Valley Junction o Norwalk?'},
+    opts:[
+     {v:'VJ', en:'Valley Junction (Valley Lab)', keys:['valley','junction','vj','lab']},
+     {v:'NW', en:'Norwalk', keys:['norwalk','north']}]},
+   {id:'direction', type:'choice', req:true,
+    say:{en:'Is the truck dropping off or picking up?', es:'¿El camión descarga o carga?'},
+    opts:[
+     {v:'in', en:'Dropping off', es:'Descarga', keys:['drop','dropping','dump','dumping','unload','descarga','descargando']},
+     {v:'out', en:'Picking up', es:'Carga', keys:['pick','picking','pickup','load','loading','carga','cargando']}]},
+   {id:'company', type:'text', req:true,
+    say:{en:'Which company is the truck from?', es:'¿De qué compañía es el camión?'}},
+   {id:'driver', type:'text', req:false,
+    say:{en:'Driver name? Say skip if you don\'t know.', es:'¿Nombre del chofer? Di saltar si no sabes.'}},
+   {id:'material', type:'choice', req:true,
+    say:{en:'What material? Leaves, compost, topsoil, garden mix, wood chips, brush, fill dirt, or other?', es:'¿Qué material? ¿Hojas, composta, tierra negra, mezcla de jardín, astillas, ramas, tierra de relleno u otro?'},
+    opts:[
+     {v:'Leaves', es:'Hojas', keys:['leaf','leaves','hojas']},
+     {v:'Compost', es:'Composta', keys:['compost','composta']},
+     {v:'Topsoil', es:'Tierra negra', keys:['topsoil','top soil','black dirt','tierra negra']},
+     {v:'Garden mix', es:'Mezcla de jardín', keys:['garden','mix','blend','jardín','jardin']},
+     {v:'Wood chips / mulch', es:'Astillas / mantillo', keys:['chips','wood','mulch','astillas','mantillo']},
+     {v:'Brush / logs', es:'Ramas / troncos', keys:['brush','logs','branches','ramas','troncos']},
+     {v:'Fill dirt', es:'Tierra de relleno', keys:['fill','fill dirt','relleno']},
+     {v:'Other', es:'Otro', keys:['other','otro','otra']}]},
+   {id:'loads', type:'number', req:false,
+    say:{en:'How many loads? Say skip for one.', es:'¿Cuántas cargas? Di saltar si es una.'}},
+   {id:'notes', type:'text', req:false,
+    say:{en:'Anything else? Say no if that\'s it.', es:'¿Algo más? Di no si es todo.'}}
+  ]
+ },
  fuel: {
   name: {en:'Fuel', es:'Combustible'},
   post: FORM_POST, notesEntry: '406120301',
@@ -163,6 +201,7 @@ var REPORTS = {
 /* ------------------------------------------------------------------------------------------------ */
 
 var L = load('lang') || 'en';
+var QUIET = load('quiet')==='1';
 var state = {report:null, i:0, ans:{}};
 var app = document.getElementById('app');
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -175,6 +214,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return
 function optLabel(o){return (L==='es'&&o.es)||o.en||o.v;}
 
 function speak(text, cb){
+  if(QUIET) return;
   try{
     if(!window.speechSynthesis){cb&&cb();return;}
     speechSynthesis.cancel();
@@ -189,12 +229,14 @@ function home(){
   stopListen();
   state={report:null,i:0,ans:{}};
   var h='<button class="lang" onclick="toggleLang()">'+(L==='es'?'English':'Español')+'</button>';
+  h+='<button class="lang" style="margin-right:8px" onclick="toggleQuiet()">'+(QUIET?(L==='es'?'🔊 Activar voz':'🔊 Turn talking on'):(L==='es'?'🔇 Solo tocar':'🔇 Tap only'))+'</button>';
   h+='<h1>'+(L==='es'?'Habla con HQ':'Talk to HQ')+'</h1><div class="sub">'+(L==='es'?'Toca un reporte y contesta hablando.':'Tap a report and answer by talking.')+'</div>';
   for(var k in REPORTS) h+='<button class="btn big" onclick="start(\''+k+'\')">🎤 '+esc(t(REPORTS[k].name))+'</button>';
   h+='<div class="sub" style="margin-top:22px">'+(L==='es'?'Más reportes pronto: equipo, trabajo terminado, pedido nuevo.':'More reports coming: equipment problem, job done, new order.')+'</div>';
   if(!SR) h+='<div class="err">'+(L==='es'?'Este navegador no escucha. Usa el micrófono del teclado para hablar en cada casilla.':'This browser can\'t listen. Tap the microphone on your keyboard to talk into each box instead.')+'</div>';
   app.innerHTML=h;
 }
+function toggleQuiet(){QUIET=!QUIET; save('quiet',QUIET?'1':'0'); try{speechSynthesis.cancel();}catch(e){} home();}
 function toggleLang(){L = L==='es'?'en':'es'; save('lang',L); home();}
 
 function qs(){return REPORTS[state.report].qs;}
@@ -339,7 +381,26 @@ function review(){
   app.innerHTML=h;
   speak(L==='es'?'Revisa y toca enviar.':'Check it and tap send.');
 }
+function sendYard(){
+  var a=state.ans;
+  if(a.material==='Leaves'){
+    var u=YARD_URL+'?yard='+encodeURIComponent(a.yard||'VJ')+(a.name?'&by='+encodeURIComponent(a.name):'');
+    app.innerHTML='<div class="err">'+(L==='es'?'Las hojas necesitan foto del boleto. Termina en la página de registro:':'Leaves need a ticket photo. Finish on the check-in page:')+'</div><a class="btn big" style="display:block;text-decoration:none" href="'+u+'">'+(L==='es'?'Abrir registro':'Open check-in page')+'</a><button class="btn ghost" onclick="home()">'+(L==='es'?'Cancelar':'Cancel')+'</button>';
+    return;
+  }
+  var b=document.getElementById('send'); if(b){b.disabled=true;b.textContent='…';}
+  var body=new URLSearchParams({type:'yard', yard:a.yard||'VJ', lane:'1', direction:a.direction||'in', company:a.company||'', driver:a.driver||'',
+    material:a.material||'', loads:a.loads||'1', notes:a.notes||'', by:a.name||'', lang:L});
+  fetch(YARD_URL,{method:'POST',mode:'no-cors',body:body}).then(function(){
+    app.innerHTML='<div class="ok">✅ '+(L==='es'?'Registrado. ¡Gracias!':'Checked in. Thanks!')+'</div><button class="btn big" onclick="home()">'+(L==='es'?'Otro reporte':'Another report')+'</button>';
+    speak(L==='es'?'Registrado. Gracias.':'Checked in. Thanks.');
+  }).catch(function(){
+    if(b){b.disabled=false;b.textContent=(L==='es'?'Reintentar':'Try again');}
+    app.insertAdjacentHTML('afterbegin','<div class="err">'+(L==='es'?'No se envió. Revisa la señal e intenta otra vez.':'Did not send. Check signal and try again.')+'</div>');
+  });
+}
 function send(){
+  if(REPORTS[state.report].kind==='yard') return sendYard();
   var b=document.getElementById('send'); if(b){b.disabled=true;b.textContent='…';}
   var body=new URLSearchParams();
   qs().forEach(function(x){ if(x.when && !x.when(state.ans)) return;
