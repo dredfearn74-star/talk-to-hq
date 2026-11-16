@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Talk to HQ</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#1d2a1f;color:#f4f1e8}
+  .wrap{max-width:520px;margin:0 auto;padding:18px 16px 40px}
+  h1{font-size:22px;margin:4px 0 2px}
+  .sub{opacity:.75;font-size:14px;margin-bottom:16px}
+  .btn{display:block;width:100%;padding:18px 14px;margin:10px 0;border:0;border-radius:14px;font-size:19px;font-weight:600;background:#e9e2cf;color:#1d2a1f;text-align:left}
+  .btn.big{background:#c98b2b;color:#fff;text-align:center;font-size:22px}
+  .btn.ghost{background:transparent;border:2px solid #e9e2cf55;color:#f4f1e8;text-align:center;font-weight:500}
+  .btn.sel{outline:4px solid #c98b2b}
+  .q{font-size:24px;font-weight:700;margin:14px 0 6px;line-height:1.25}
+  .hint{font-size:14px;opacity:.7;margin-bottom:10px}
+  .mic{width:120px;height:120px;border-radius:60px;border:0;background:#c98b2b;color:#fff;font-size:44px;display:block;margin:16px auto}
+  .mic.on{background:#d9432f;animation:p 1s infinite}
+  @keyframes p{50%{transform:scale(1.07)}}
+  .heard{min-height:30px;font-size:20px;text-align:center;margin:8px 0;color:#ffe9b8}
+  input[type=text]{width:100%;font-size:20px;padding:14px;border-radius:12px;border:0;margin:6px 0}
+  .row{display:flex;gap:10px}.row .btn{flex:1;text-align:center}
+  .rev{background:#2a3a2c;border-radius:12px;padding:12px 14px;margin:8px 0}
+  .rev b{display:block;font-size:13px;opacity:.7;font-weight:500}
+  .rev span{font-size:19px}
+  .lang{float:right;font-size:14px;background:transparent;color:#f4f1e8;border:1px solid #f4f1e866;border-radius:8px;padding:6px 10px}
+  .ok{font-size:26px;text-align:center;margin-top:40px}
+  .err{background:#5a1f1a;padding:12px;border-radius:10px;margin:10px 0}
+  .prog{height:6px;background:#2a3a2c;border-radius:3px;margin:6px 0 4px}.prog i{display:block;height:6px;background:#c98b2b;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+/* ---------- CONFIG: Iowa Dirt Fuel Log form (posts exactly like a person filling the form) ---------- */
+var FORM_POST = 'https://docs.google.com/forms/d/e/1FAIpQLSc2nwPmBSfNGzw5qPIm37joHqEiYH3nA9D6sNYffVkOBQWGrA/formResponse';
+var NOT_LISTED_JOB = 'Not on the list (type it below) / No está en la lista';
+var REPORTS = {
+ fuel: {
+  name: {en:'Fuel', es:'Combustible'},
+  qs: [
+   {id:'name', entry:'1229928168', type:'text', req:true, remember:true,
+    say:{en:'What is your name?', es:'¿Cuál es tu nombre?'}},
+   {id:'what', entry:'185570729', type:'choice', req:true,
+    say:{en:'What happened? Filled a machine, a fuel delivery, or a gauge reading?', es:'¿Qué pasó? ¿Llenaste una máquina, entrega de combustible, o leíste el medidor?'},
+    opts:[
+     {v:'Filled a machine from the tank / Llené una máquina', en:'Filled a machine', es:'Llené una máquina', keys:['fill','filled','fueled','machine','llené','llene','llenar','máquina','maquina']},
+     {v:'Fuel delivered to the tank / Entrega de combustible', en:'Fuel delivered to the tank', es:'Entrega de combustible', keys:['deliver','delivered','delivery','truck came','entrega','entregaron']},
+     {v:'Read the tank gauge / Leí el medidor', en:'Read the tank gauge', es:'Leí el medidor', keys:['gauge','gage','read','reading','medidor','leí','lei']}]},
+   {id:'machine', entry:'1806910269', type:'choice', req:false, when:function(a){return /^Filled/.test(a.what||'');},
+    say:{en:'Which machine?', es:'¿Qué máquina?'},
+    opts:[
+     {v:'T76', keys:['t76','t 76','t seventy six','seventy six','76','bobcat']},
+     {v:'SK800', keys:['sk800','sk 800','800','eight hundred','toro']},
+     {v:'SK1550', keys:['sk1550','sk 1550','1550','fifteen fifty']},
+     {v:'Transfer tank', es:'Tanque de transferencia', keys:['transfer','tanque de transferencia']},
+     {v:'F-600 dump truck', es:'Volteo F-600', keys:['f600','f 600','f-600','600','six hundred','dump','volteo']},
+     {v:'Dodge Ram 2500', keys:['ram','dodge','2500','pickup','camioneta']},
+     {v:'Terra Xtreme 4240', keys:['terra','xtreme','extreme','4240','screener','criba']},
+     {v:'Other (say which in notes)', en:'Other', es:'Otra', keys:['other','otra','otro']}]},
+   {id:'for', entry:'1604880630', type:'choice', req:false, when:function(a){return /^Filled/.test(a.what||'');},
+    say:{en:'What is this fuel for? Valley Lab, Norwalk yard, hauling, a landmatters job, or an Iowa Dirt delivery?', es:'¿Para qué es? ¿Valley Lab, Norwalk, acarreo, trabajo de landmatters, o entrega de Iowa Dirt?'},
+    opts:[
+     {v:'Valley Lab (Valley Junction yard)', keys:['valley','lab','junction','vj']},
+     {v:'Norwalk yard', keys:['norwalk']},
+     {v:'Trucking / hauling', es:'Acarreo', keys:['truck','trucking','haul','hauling','acarreo']},
+     {v:'landmatters job (pick it below)', en:'landmatters job', es:'Trabajo de landmatters', keys:['landmatters','land matters','landmatter','land']},
+     {v:'Iowa Dirt delivery (pick it below)', en:'Iowa Dirt delivery', es:'Entrega de Iowa Dirt', keys:['iowa','dirt','delivery','entrega']},
+     {v:'Other (say what below)', en:'Other', es:'Otro', keys:['other','otro','otra']}]},
+   {id:'job', entry:'513344101', otherEntry:'1306334877', type:'job', req:false,
+    when:function(a){return /landmatters job|Iowa Dirt delivery/.test(a['for']||'');},
+    say:{en:'Which job or customer?', es:'¿Qué trabajo o cliente?'},
+    opts:[
+     {v:'Chad - CLK (Iowa Dirt)', keys:['chad','clk']},
+     {v:'Jeff Reiland (Iowa Dirt)', keys:['jeff','reiland','riland']},
+     {v:'Kaitlin Blunck (landmatters)', keys:['kaitlin','caitlin','katelyn','blunck','blonk']},
+     {v:'Katy Severe (Iowa Dirt)', keys:['katy','katie','severe']},
+     {v:'LaShell Staley (landmatters)', keys:['lashell','la shell','michelle','staley']}]},
+   {id:'gallons', entry:'351377384', type:'number', req:true,
+    say:{en:'How many gallons? For a gauge reading, say what the gauge shows is in the tank.', es:'¿Cuántos galones? Si leíste el medidor, di cuánto hay en el tanque.'}},
+   {id:'cost', entry:'988830656', type:'number', req:false, when:function(a){return /^Fuel delivered/.test(a.what||'');},
+    say:{en:'What did the delivery cost, in dollars? Say skip if you don\'t know.', es:'¿Cuánto costó la entrega en dólares? Di saltar si no sabes.'}},
+   {id:'notes', entry:'406120301', type:'text', req:false,
+    say:{en:'Anything else? Say no if that\'s it.', es:'¿Algo más? Di no si es todo.'}}
+  ]
+ }
+};
+/* ------------------------------------------------------------------------------------------------ */
+
+var L = load('lang') || 'en';
+var state = {report:null, i:0, ans:{}};
+var app = document.getElementById('app');
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+var rec = null, listening = false;
+
+function load(k){try{return localStorage.getItem('thq_'+k);}catch(e){return null;}}
+function save(k,v){try{localStorage.setItem('thq_'+k,v);}catch(e){}}
+function t(o){return (o && (o[L]||o.en)) || '';}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function optLabel(o){return (L==='es'&&o.es)||o.en||o.v;}
+
+function speak(text, cb){
+  try{
+    if(!window.speechSynthesis){cb&&cb();return;}
+    speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text); u.lang = L==='es'?'es-US':'en-US'; u.rate=1.0;
+    var done=false; var fin=function(){if(!done){done=true;cb&&cb();}};
+    u.onend=fin; u.onerror=fin; setTimeout(fin, 9000);
+    speechSynthesis.speak(u);
+  }catch(e){cb&&cb();}
+}
+
+function home(){
+  stopListen();
+  state={report:null,i:0,ans:{}};
+  var h='<button class="lang" onclick="toggleLang()">'+(L==='es'?'English':'Español')+'</button>';
+  h+='<h1>'+(L==='es'?'Habla con HQ':'Talk to HQ')+'</h1><div class="sub">'+(L==='es'?'Toca un reporte y contesta hablando.':'Tap a report and answer by talking.')+'</div>';
+  for(var k in REPORTS) h+='<button class="btn big" onclick="start(\''+k+'\')">🎤 '+esc(t(REPORTS[k].name))+'</button>';
+  h+='<div class="sub" style="margin-top:22px">'+(L==='es'?'Más reportes pronto: equipo, trabajo terminado, pedido nuevo.':'More reports coming: equipment problem, job done, new order.')+'</div>';
+  if(!SR) h+='<div class="err">'+(L==='es'?'Este navegador no escucha. Usa el micrófono del teclado para hablar en cada casilla.':'This browser can\'t listen. Tap the microphone on your keyboard to talk into each box instead.')+'</div>';
+  app.innerHTML=h;
+}
+function toggleLang(){L = L==='es'?'en':'es'; save('lang',L); home();}
+
+function qs(){return REPORTS[state.report].qs;}
+function nextIndex(from){
+  var q=qs();
+  for(var j=from;j<q.length;j++){ if(!q[j].when || q[j].when(state.ans)) return j; }
+  return q.length;
+}
+function start(k){
+  state.report=k; state.ans={};
+  var n=load('name'); if(n) state.ans.name=n;
+  state.i = nextIndex(0);
+  if(state.ans.name && qs()[state.i].id==='name') state.i=nextIndex(state.i+1);
+  ask();
+}
+
+function ask(){
+  stopListen();
+  var q=qs();
+  if(state.i>=q.length) return review();
+  var cur=q[state.i];
+  var shown=q.filter(function(x){return !x.when||x.when(state.ans);}).length;
+  var pos=q.slice(0,state.i+1).filter(function(x){return !x.when||x.when(state.ans);}).length;
+  var h='<div class="prog"><i style="width:'+Math.round(100*pos/shown)+'%"></i></div>';
+  h+='<div class="q">'+esc(t(cur.say))+'</div>';
+  if(SR) h+='<button class="mic" id="mic" onclick="toggleListen()">🎤</button><div class="heard" id="heard">'+(L==='es'?'Toca el micrófono y habla':'Tap the mic and talk')+'</div>';
+  if(cur.type==='choice'||cur.type==='job'){
+    cur.opts.forEach(function(o,ix){ h+='<button class="btn'+(state.ans[cur.id]===o.v?' sel':'')+'" onclick="pick('+ix+')">'+esc(optLabel(o))+'</button>'; });
+    if(cur.type==='job') h+='<input type="text" id="typed" placeholder="'+(L==='es'?'¿No está? Escríbelo o dilo':'Not listed? Type it or say it')+'" value="'+esc(state.ans.jobOther||'')+'">';
+  } else {
+    h+='<input type="text" id="typed" '+(cur.type==='number'?'inputmode="decimal"':'')+' value="'+esc(state.ans[cur.id]||'')+'">';
+  }
+  h+='<div class="row"><button class="btn ghost" onclick="back()">'+(L==='es'?'Atrás':'Back')+'</button>';
+  h+='<button class="btn" onclick="nextTyped()">'+(L==='es'?'Siguiente':'Next')+'</button></div>';
+  if(!cur.req) h+='<button class="btn ghost" onclick="skip()">'+(L==='es'?'Saltar':'Skip')+'</button>';
+  h+='<button class="btn ghost" onclick="home()">'+(L==='es'?'Cancelar':'Cancel')+'</button>';
+  app.innerHTML=h;
+  speak(t(cur.say), function(){ if(SR) startListen(); });
+}
+
+function back(){ var q=qs(); for(var j=state.i-1;j>=0;j--){ if(!q[j].when||q[j].when(state.ans)){state.i=j;return ask();} } home(); }
+function skip(){ var cur=qs()[state.i]; delete state.ans[cur.id]; if(cur.type==='job') delete state.ans.jobOther; advance(); }
+function advance(){ state.i=nextIndex(state.i+1); ask(); }
+function pick(ix){ var cur=qs()[state.i]; state.ans[cur.id]=cur.opts[ix].v; if(cur.type==='job') delete state.ans.jobOther; advance(); }
+function nextTyped(){
+  var cur=qs()[state.i], el=document.getElementById('typed'), v=el?el.value.trim():'';
+  if(cur.type==='job'){ if(v){state.ans.job=NOT_LISTED_JOB; state.ans.jobOther=v;} if(!state.ans.job && cur.req) return; return advance(); }
+  if(cur.type==='choice'){ if(state.ans[cur.id]) return advance(); if(!cur.req) return advance(); return; }
+  if(cur.type==='number'){ var n=toNumber(v); if(n===null && v){ v=v; } else if(n!==null) v=String(n); }
+  if(!v && cur.req){ flash(L==='es'?'Necesito una respuesta':'I need an answer for this one'); return; }
+  if(v){ state.ans[cur.id]=v; if(cur.remember) save(cur.id,v); } else delete state.ans[cur.id];
+  advance();
+}
+function flash(m){var h=document.getElementById('heard'); if(h) h.textContent=m; else alertBox(m);}
+function alertBox(m){var d=document.createElement('div');d.className='err';d.textContent=m;app.prepend(d);}
+
+/* ---- listening ---- */
+function toggleListen(){ listening?stopListen():startListen(); }
+function startListen(){
+  if(!SR) return;
+  stopListen();
+  try{
+    rec=new SR(); rec.lang = L==='es'?'es-US':'en-US'; rec.interimResults=true; rec.maxAlternatives=3; rec.continuous=false;
+    var finalText='';
+    rec.onresult=function(e){
+      var interim=''; finalText='';
+      for(var i=0;i<e.results.length;i++){ if(e.results[i].isFinal) finalText+=e.results[i][0].transcript; else interim+=e.results[i][0].transcript; }
+      var h=document.getElementById('heard'); if(h) h.textContent='“'+(finalText||interim)+'”';
+      if(finalText){ var alts=[]; var r=e.results[e.results.length-1]; for(var k=0;k<r.length;k++) alts.push(r[k].transcript); handleSpeech(finalText, alts); }
+    };
+    rec.onerror=function(e){ listening=false; setMic(false); var h=document.getElementById('heard');
+      if(h) h.textContent = (e.error==='not-allowed'||e.error==='service-not-allowed') ? (L==='es'?'Micrófono bloqueado. Permite el micrófono o usa el teclado.':'Mic is blocked. Allow the microphone, or use the keyboard mic.') : (L==='es'?'No te escuché. Toca el micrófono otra vez.':'Didn\'t catch that. Tap the mic again.'); };
+    rec.onend=function(){ listening=false; setMic(false); };
+    rec.start(); listening=true; setMic(true);
+  }catch(err){ listening=false; setMic(false); }
+}
+function stopListen(){ try{ if(rec){ rec.onend=null; rec.abort(); } }catch(e){} rec=null; listening=false; setMic(false); }
+function setMic(on){ var m=document.getElementById('mic'); if(m) m.className='mic'+(on?' on':''); }
+
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();}
+function isSkip(s){ s=norm(s); return /^(skip|saltar|no|nope|nothing|nada|that s it|thats it|es todo|none|ninguno|no se|i don t know|dont know)$/.test(s); }
+function matchOpt(opts, texts){
+  var best=null, bestScore=0;
+  texts.forEach(function(tx){ var n=' '+norm(tx)+' ';
+    opts.forEach(function(o){ var sc=0;
+      (o.keys||[]).forEach(function(k){ var kk=norm(k); if(kk && n.indexOf(' '+kk+' ')>-1) sc+=kk.length+2; else if(kk.length>3 && n.indexOf(kk)>-1) sc+=kk.length; });
+      if(n.indexOf(' '+norm(optLabel(o))+' ')>-1) sc+=20;
+      if(sc>bestScore){bestScore=sc;best=o;}
+    });
+  });
+  return best;
+}
+function handleSpeech(text, alts){
+  var cur=qs()[state.i];
+  if(/^(back|atras)$/.test(norm(text))) return back();
+  if(!cur.req && isSkip(text) && cur.type!=='choice') return skip();
+  if(cur.type==='choice'||cur.type==='job'){
+    var o=matchOpt(cur.opts, alts.length?alts:[text]);
+    if(o){ state.ans[cur.id]=o.v; if(cur.type==='job') delete state.ans.jobOther; return confirmThen(optLabel(o)); }
+    if(cur.type==='job'){ state.ans.job=NOT_LISTED_JOB; state.ans.jobOther=text.trim(); return confirmThen(text.trim()); }
+    if(!cur.req && isSkip(text)) return skip();
+    var h=document.getElementById('heard'); if(h) h.textContent='“'+text+'” — '+(L==='es'?'no lo encontré, toca uno':'didn\'t match, tap one');
+    return;
+  }
+  if(cur.type==='number'){
+    var n=toNumber(text);
+    if(n===null){ var h2=document.getElementById('heard'); if(h2) h2.textContent='“'+text+'” — '+(L==='es'?'di solo el número':'just say the number'); return; }
+    state.ans[cur.id]=String(n); return confirmThen(String(n));
+  }
+  if(cur.id==='notes' && isSkip(text)) return skip();
+  var v=text.trim(); v=v.charAt(0).toUpperCase()+v.slice(1);
+  state.ans[cur.id]=v; if(cur.remember) save(cur.id,v);
+  confirmThen(v);
+}
+function confirmThen(label){ var h=document.getElementById('heard'); if(h) h.textContent='✓ '+label; setTimeout(advance, 700); }
+
+var ONES={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,
+  cero:0,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20};
+var TENS={twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90};
+function toNumber(s){
+  if(s==null) return null; var raw=String(s).replace(/,/g,'');
+  var m=raw.match(/-?\d+(\.\d+)?/); if(m) { var n=parseFloat(m[0]); if(/half|medio/.test(raw.toLowerCase()) && n%1===0) n+=0.5; return n; }
+  var w=norm(s).split(' '), total=0, cur=0, any=false;
+  w.forEach(function(x){ if(x in ONES){cur+=ONES[x];any=true;} else if(x in TENS){cur+=TENS[x];any=true;} else if(x==='hundred'||x==='cien'||x==='cientos'){cur=(cur||1)*100;any=true;} else if(x==='thousand'||x==='mil'){total+=(cur||1)*1000;cur=0;any=true;} else if(x==='half'||x==='medio'){cur+=0.5;any=true;} });
+  return any? total+cur : null;
+}
+
+/* ---- review + send ---- */
+function review(){
+  stopListen();
+  var q=qs(), h='<h1>'+(L==='es'?'Revisa y envía':'Check it and send')+'</h1>';
+  q.forEach(function(x,ix){ if(x.when && !x.when(state.ans)) return;
+    var v = x.type==='job' ? (state.ans.jobOther||state.ans.job) : state.ans[x.id];
+    var label = v; if(x.opts){ x.opts.forEach(function(o){ if(o.v===v) label=optLabel(o); }); }
+    h+='<div class="rev" onclick="state.i='+ix+';ask()"><b>'+esc(t(x.say))+'</b><span>'+esc(label||'—')+'</span></div>';
+  });
+  var missing=q.filter(function(x){return x.req && (!x.when||x.when(state.ans)) && !state.ans[x.id];});
+  h+='<div class="sub">'+(L==='es'?'Toca una respuesta para cambiarla.':'Tap any answer to change it.')+'</div>';
+  if(missing.length) h+='<div class="err">'+(L==='es'?'Falta: ':'Missing: ')+esc(missing.map(function(x){return t(x.say);}).join(' · '))+'</div>';
+  else h+='<button class="btn big" id="send" onclick="send()">'+(L==='es'?'Enviar a HQ':'Send to HQ')+'</button>';
+  h+='<button class="btn ghost" onclick="home()">'+(L==='es'?'Cancelar':'Cancel')+'</button>';
+  app.innerHTML=h;
+  speak(L==='es'?'Revisa y toca enviar.':'Check it and tap send.');
+}
+function send(){
+  var b=document.getElementById('send'); if(b){b.disabled=true;b.textContent='…';}
+  var body=new URLSearchParams();
+  qs().forEach(function(x){ if(x.when && !x.when(state.ans)) return;
+    var v=state.ans[x.id]; if(v) body.append('entry.'+x.entry, v);
+    if(x.type==='job' && state.ans.jobOther) body.append('entry.'+x.otherEntry, state.ans.jobOther);
+  });
+  var tag = (state.ans.notes?state.ans.notes+' ':'')+'[via Talk to HQ]';
+  body.set('entry.406120301', tag);
+  fetch(FORM_POST,{method:'POST',mode:'no-cors',body:body}).then(function(){
+    app.innerHTML='<div class="ok">✅ '+(L==='es'?'Enviado. ¡Gracias!':'Sent. Thanks!')+'</div><button class="btn big" onclick="home()">'+(L==='es'?'Otro reporte':'Another report')+'</button>';
+    speak(L==='es'?'Enviado. Gracias.':'Sent. Thanks.');
+  }).catch(function(){
+    if(b){b.disabled=false;b.textContent=(L==='es'?'Reintentar':'Try again');}
+    alertBox(L==='es'?'No se envió. Revisa tu señal y toca reintentar.':'Did not send. Check your signal and tap try again.');
+  });
+}
+home();
+</script>
+</body>
+</html>
