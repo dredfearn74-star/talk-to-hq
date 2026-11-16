@@ -40,6 +40,7 @@ var NOT_LISTED_JOB = 'Not on the list (type it below) / No está en la lista';
 var REPORTS = {
  fuel: {
   name: {en:'Fuel', es:'Combustible'},
+  post: FORM_POST, notesEntry: '406120301',
   qs: [
    {id:'name', entry:'1229928168', type:'text', req:true, remember:true,
     say:{en:'What is your name?', es:'¿Cuál es tu nombre?'}},
@@ -101,6 +102,60 @@ var REPORTS = {
    {id:'galRam', entry:'1377955246', type:'number', req:false, when:function(a){return /^Bought diesel/.test(a.what||'');},
     say:{en:'And how many went into the Ram itself?', es:'¿Y cuántos a la Ram?'}},
    {id:'notes', entry:'406120301', type:'text', req:false,
+    say:{en:'Anything else? Say no if that\'s it.', es:'¿Algo más? Di no si es todo.'}}
+  ]
+ },
+ equipment: {
+  name: {en:'Equipment service / repair', es:'Servicio o reparación de equipo'},
+  post: 'https://docs.google.com/forms/d/e/1FAIpQLSdaHcW6pWCeTmc9nNjPopC9ZAt-tteY61LqkJj8Yl8bMMo8hw/formResponse', notesEntry: '1721357605',
+  qs: [
+   {id:'name', entry:'266376464', type:'text', req:true, remember:true,
+    say:{en:'What is your name?', es:'¿Cuál es tu nombre?'}},
+   {id:'machine', entry:'1570420260', type:'choice', req:true,
+    say:{en:'Which machine?', es:'¿Qué máquina?'},
+    opts:[
+     {v:'Ditch Witch SK800 (2020)', en:'SK800', keys:['sk800','sk 800','800','eight hundred','toro']},
+     {v:'Ditch Witch SK1550 (2023)', en:'SK1550', keys:['sk1550','sk 1550','1550','fifteen fifty']},
+     {v:'Bobcat T76 (2020)', en:'Bobcat T76 (2020)', keys:['t76','t 76','seventy six','76','bobcat','2020']},
+     {v:'Bobcat T76 Platinum (2022)', en:'Bobcat T76 Platinum', keys:['platinum','2022']},
+     {v:'Ford F600 dump truck (2023)', en:'F-600 dump truck', es:'Volteo F-600', keys:['f600','f 600','f-600','600','six hundred','dump','volteo']},
+     {v:'Dodge Ram 2500 (2015)', en:'Ram 2500', keys:['ram','dodge','2500','pickup','camioneta']},
+     {v:'Chevy fire truck (1987)', en:'Fire truck', es:'Camión de bomberos', keys:['fire','chevy','bomberos']},
+     {v:'Terra Xtreme 4240 (2022)', en:'Terra Xtreme 4240', keys:['terra','xtreme','extreme','4240','screener','criba']},
+     {v:'SLG 108 deck screen', en:'SLG 108 deck screen', keys:['slg','108','deck screen','deck']},
+     {v:'Mquip MK2 suction tool', en:'Mquip suction tool', keys:['mquip','suction','mk2','succion']},
+     {v:'Wacker Neuson plate compactor', en:'Plate compactor', es:'Compactadora', keys:['wacker','plate','compactor','compactadora']},
+     {v:'Midsota tilt deck trailer', en:'Tilt deck trailer', es:'Remolque', keys:['midsota','tilt','tilt deck']},
+     {v:'7x14 enclosed trailer', en:'Enclosed trailer', es:'Remolque cerrado', keys:['enclosed','7x14','seven by fourteen','cerrado']},
+     {v:'Water tank / pump', en:'Water tank / pump', es:'Tanque de agua / bomba', keys:['water','pump','agua','bomba']},
+     {v:'Attachment (say which in notes)', en:'Attachment', es:'Accesorio', keys:['attachment','bucket','accesorio']}]},
+   {id:'hours', entry:'922723768', type:'number', req:false,
+    say:{en:'What does the hour meter say? Miles for trucks. Say skip if it has none.', es:'¿Qué marca el horómetro? Millas si es camión. Di saltar si no tiene.'}},
+   {id:'done', entry:'779849769', type:'choice', req:true,
+    say:{en:'What was done? Oil change, hydraulics, grease, a filter, tracks or teeth, tires or brakes, or another repair?', es:'¿Qué se hizo? ¿Cambio de aceite, hidráulico, engrase, filtro, orugas o dientes, llantas o frenos, u otra reparación?'},
+    opts:[
+     {v:'Oil change', es:'Cambio de aceite', keys:['oil','aceite']},
+     {v:'Hydraulic fluid / filter', es:'Fluido / filtro hidráulico', keys:['hydraulic fluid','hydraulic filter','fluid','fluido']},
+     {v:'Hydraulic repair', es:'Reparación hidráulica', keys:['hydraulic repair','hose','leak','manguera','fuga']},
+     {v:'Grease', es:'Engrase', keys:['grease','greased','grasa','engrase']},
+     {v:'Air filter', es:'Filtro de aire', keys:['air filter','air','aire']},
+     {v:'Fuel filter', es:'Filtro de combustible', keys:['fuel filter','combustible']},
+     {v:'Tracks / teeth / cutting edge', es:'Orugas / dientes / cuchilla', keys:['track','tracks','teeth','tooth','cutting edge','oruga','dientes']},
+     {v:'Tires / brakes', es:'Llantas / frenos', keys:['tire','tires','brake','brakes','llanta','frenos']},
+     {v:'Other repair', es:'Otra reparación', keys:['other','repair','fixed','otra','reparación','reparacion']}]},
+   {id:'who', entry:'708640836', type:'choice', req:true,
+    say:{en:'Who did the work? Our crew, Chris Marx the mechanic, or another shop?', es:'¿Quién hizo el trabajo? ¿Nuestro equipo, Chris Marx el mecánico, u otro taller?'},
+    opts:[
+     {v:'Our crew', es:'Nuestro equipo', keys:['crew','us','we','me','i did','our','nosotros','yo','equipo']},
+     {v:'Chris Marx (mechanic)', es:'Chris Marx (mecánico)', keys:['chris','marx','marks','mechanic','mecánico','mecanico']},
+     {v:'Another shop', es:'Otro taller', keys:['shop','another','dealer','taller','otro']}]},
+   {id:'shop', entry:'479103386', type:'text', req:false, when:function(a){return /Another shop/.test(a.who||'');},
+    say:{en:'Which shop or parts store?', es:'¿Qué taller o tienda de partes?'}},
+   {id:'fixed', entry:'197808359', type:'text', req:false,
+    say:{en:'What exactly was fixed or replaced? Say skip if nothing to add.', es:'¿Qué se arregló o cambió exactamente? Di saltar si nada.'}},
+   {id:'cost', entry:'750260054', type:'number', req:false,
+    say:{en:'What did it cost, in dollars? Say skip if you don\'t know.', es:'¿Cuánto costó en dólares? Di saltar si no sabes.'}},
+   {id:'notes', entry:'1721357605', type:'text', req:false,
     say:{en:'Anything else? Say no if that\'s it.', es:'¿Algo más? Di no si es todo.'}}
   ]
  }
@@ -292,8 +347,8 @@ function send(){
     if(x.type==='job' && state.ans.jobOther) body.append('entry.'+x.otherEntry, state.ans.jobOther);
   });
   var tag = (state.ans.notes?state.ans.notes+' ':'')+'[via Talk to HQ]';
-  body.set('entry.406120301', tag);
-  fetch(FORM_POST,{method:'POST',mode:'no-cors',body:body}).then(function(){
+  body.set('entry.'+REPORTS[state.report].notesEntry, tag);
+  fetch(REPORTS[state.report].post,{method:'POST',mode:'no-cors',body:body}).then(function(){
     app.innerHTML='<div class="ok">✅ '+(L==='es'?'Enviado. ¡Gracias!':'Sent. Thanks!')+'</div><button class="btn big" onclick="home()">'+(L==='es'?'Otro reporte':'Another report')+'</button>';
     speak(L==='es'?'Enviado. Gracias.':'Sent. Thanks.');
   }).catch(function(){
