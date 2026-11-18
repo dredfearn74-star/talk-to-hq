@@ -213,6 +213,25 @@ function t(o){return (o && (o[L]||o.en)) || '';}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function optLabel(o){return (L==='es'&&o.es)||o.en||o.v;}
 
+/* Read only the first sentence out loud; the rest stays on screen to read. */
+function firstSentence(text){
+  var m=String(text||'').match(/^[\s\S]*?[.?!](?=\s|$)/);
+  return m ? m[0].trim() : String(text||'');
+}
+
+/* Keep the screen awake while the app is open. */
+var wakeLock=null;
+function keepAwake(){
+  try{
+    if(!('wakeLock' in navigator) || document.visibilityState!=='visible' || wakeLock) return;
+    navigator.wakeLock.request('screen').then(function(l){ wakeLock=l; l.addEventListener('release',function(){ wakeLock=null; }); }).catch(function(){});
+  }catch(e){}
+}
+document.addEventListener('visibilitychange', keepAwake);
+document.addEventListener('click', keepAwake, true);
+document.addEventListener('touchstart', keepAwake, true);
+keepAwake();
+
 function speak(text, cb){
   if(QUIET) return;
   try{
@@ -274,7 +293,7 @@ function ask(){
   if(!cur.req) h+='<button class="btn ghost" onclick="skip()">'+(L==='es'?'Saltar':'Skip')+'</button>';
   h+='<button class="btn ghost" onclick="home()">'+(L==='es'?'Cancelar':'Cancel')+'</button>';
   app.innerHTML=h;
-  speak(t(cur.say), function(){ if(SR) startListen(); });
+  speak(firstSentence(t(cur.say)), function(){ if(SR) startListen(); });
 }
 
 function back(){ var q=qs(); for(var j=state.i-1;j>=0;j--){ if(!q[j].when||q[j].when(state.ans)){state.i=j;return ask();} } home(); }
